@@ -2,10 +2,7 @@ use actix_web::{error, web, HttpRequest, HttpResponse};
 use futures::StreamExt;
 // use futures::TryStreamExt;
 use mongodb::{
-    bson::{
-        doc, oid::ObjectId, serde_helpers::bson_datetime_as_rfc3339_string, DateTime,
-        RawDocumentBuf,
-    },
+    bson::{doc, serde_helpers::bson_datetime_as_rfc3339_string, DateTime, RawDocumentBuf},
     Cursor,
 };
 // use mongodb::bson::Document;
@@ -40,7 +37,6 @@ const REQUIRE_COLL: [&str; 16] = [
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SynchronizeInput {
-    pub branches: Option<String>,
     #[serde(with = "bson_datetime_as_rfc3339_string")]
     pub synced_at: DateTime,
 }
@@ -73,14 +69,12 @@ async fn synchronize(
     let sctx = serde_json::from_str::<ServerContext>(&payload)
         .map_err(|_| error::ErrorBadRequest("Could not get server context"))?;
     let db = &db::tenant_db(&sctx.org);
-    let mut bids: Vec<ObjectId> = Vec::new();
-    if let Some(ref brs) = args.branches {
-        bids = serde_json::from_str(&brs).ok().unwrap_or_default();
-    }
 
-    let mut filter = doc! {"updatedAt": {"$lte": &args.synced_at}};
     if !REQUIRE_COLL.contains(&collection.as_str()) {
-        return Err(error::ErrorBadRequest("Could not get collection instance"));
+        return Err(error::ErrorBadRequest(format!(
+            "{} collection not allowed",
+            &collection.as_str()
+        )));
     }
     // let docs = db
     //     .collection::<Document>(&collection)
@@ -93,7 +87,7 @@ async fn synchronize(
     // println!("docs: {:?}", docs);
     let result = db
         .collection::<RawDocumentBuf>(&collection)
-        .find(filter, None)
+        .find(doc! {"updatedAt": {"$lte": &args.synced_at}}, None)
         .await
         .map_err(|_| error::ErrorInternalServerError("Can't get data"));
     let data: Cursor<RawDocumentBuf>;
