@@ -20,21 +20,21 @@ use crate::{
 
 const REQUIRE_COLL: [&str; 16] = [
     "inventories",
-    "inventory_heads",
-    "gst_registrations",
     "branches",
     "accounts",
-    "customers",
+    "gst_registrations",
+    "inventory_heads",
+    "contacts",
     "doctors",
     "patients",
-    "preferences",
+    "voucher_types",
     "sale_incharges",
     "cash_registers",
     "print_templates",
     "members",
     "units",
-    "account_transactions",
-    "inventory_transactions",
+    "account_pendings",
+    "batches",
 ];
 
 #[derive(Debug, Clone, Deserialize)]
@@ -81,17 +81,6 @@ async fn synchronize(
     let mut filter = doc! {"updatedAt": {"$lte": &args.synced_at}};
     if !REQUIRE_COLL.contains(&collection.as_str()) {
         return Err(error::ErrorBadRequest("Could not get collection instance"));
-    }
-    if ["account_transactions", "inventory_transactions"].contains(&collection.as_str())
-        && bids.len() > 0
-    {
-        filter.insert("branch", doc! {"$in": bids});
-    }
-    if collection == "account_transactions" {
-        filter.insert(
-            "accountType",
-            doc! {"$in": ["TRADE_RECEIVABLE", "ACCOUNT_RECEIVABLE"]},
-        );
     }
     // let docs = db
     //     .collection::<Document>(&collection)
