@@ -1,19 +1,17 @@
 use actix_web::{error, web, HttpRequest, HttpResponse};
 use futures::StreamExt;
-// use futures::TryStreamExt;
 use mongodb::{
-    bson::{doc, serde_helpers::bson_datetime_as_rfc3339_string, DateTime, RawDocumentBuf},
+    bson::{
+        doc, oid::ObjectId, serde_helpers::bson_datetime_as_rfc3339_string, DateTime,
+        RawDocumentBuf,
+    },
     Cursor,
 };
-// use mongodb::bson::Document;
 use serde::Deserialize;
 use tonic::transport::Channel;
 
+use crate::auth::{auth_session_client::AuthSessionClient, SessionGetRequest};
 use crate::db;
-use crate::{
-    auth::{auth_session_client::AuthSessionClient, SessionGetRequest},
-    guard::ServerContext,
-};
 
 const REQUIRE_COLL: [&str; 16] = [
     "inventories",
@@ -33,6 +31,13 @@ const REQUIRE_COLL: [&str; 16] = [
     "account_pendings",
     "batches",
 ];
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ServerContext {
+    pub org: String,
+    pub ofid: ObjectId,
+    pub iat: String,
+}
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -76,15 +81,6 @@ async fn synchronize(
             &collection.as_str()
         )));
     }
-    // let docs = db
-    //     .collection::<Document>(&collection)
-    //     .find(filter.clone(), None)
-    //     .await
-    //     .map_err(|_| error::ErrorInternalServerError("err1"))?
-    //     .try_collect::<Vec<Document>>()
-    //     .await
-    //     .map_err(|_| error::ErrorInternalServerError("err2"))?;
-    // println!("docs: {:?}", docs);
     let result = db
         .collection::<RawDocumentBuf>(&collection)
         .find(doc! {"updatedAt": {"$lte": &args.synced_at}}, None)
@@ -103,6 +99,6 @@ async fn synchronize(
 pub fn init_routes(route_path: &str, cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::resource(format!("{}/synchronize/{{collection}}", route_path))
-            .route(web::get().to(synchronize)), // .wrap(ServerAccess),
+            .route(web::get().to(synchronize)),
     );
 }

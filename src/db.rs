@@ -17,12 +17,6 @@ pub async fn initialize(uri: &str) {
     DB_CLIENT.set(client).unwrap();
 }
 
-pub fn _master_db() -> Database {
-    let master_db_name = std::env::var("MASTER_DB_NAME").expect("MASTER_DB_NAME not set");
-    let client = DB_CLIENT.get().unwrap();
-    client.database(&master_db_name)
-}
-
 pub fn tenant_db(name: &str) -> Database {
     let client = DB_CLIENT.get().unwrap();
     client.database(name)

@@ -11,7 +11,6 @@ mod auth {
 }
 
 mod db;
-mod guard;
 mod sync;
 
 use auth::auth_session_client::AuthSessionClient;
@@ -31,10 +30,8 @@ async fn main() -> std::io::Result<()> {
             .unwrap();
 
     let master_db_cluster = std::env::var("MASTER_DB_CLUSTER").expect("MASTER_DB_CLUSTER not set");
-    // std::env::var("MASTER_DB_NAME").expect("MASTER_DB_NAME not set");
-
     db::initialize(&master_db_cluster).await;
-    // println!("db initialized");
+
     let server = HttpServer::new(move || {
         App::new()
             .wrap(
